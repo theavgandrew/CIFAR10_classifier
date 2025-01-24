@@ -9,8 +9,8 @@ import time
 
 
 BATCH_SIZE = 64
-EPOCHS = 2
-MAX_LR = 1e-2
+EPOCHS = 10
+MAX_LR = 1e-3
 
 def denormalize(images, means, std_devs):
   # do reverse of normalization: image * sd_dev + mean
