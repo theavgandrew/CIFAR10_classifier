@@ -10,7 +10,7 @@ import time
 
 BATCH_SIZE = 64
 EPOCHS = 10
-MAX_LR = 1e-3
+MAX_LR = 1e-2
 
 def denormalize(images, means, std_devs):
   # do reverse of normalization: image * sd_dev + mean
@@ -126,33 +126,28 @@ def evaluate(model, dl, loss_func):
   return epoch_avg_loss, epoch_avg_acc
 
 def train(model, train_dl, val_dl, epochs, max_lr, loss_func, optim):
-  #initialize optimizer 
+    #initialize optimizer 
   optimizer = optim(model.parameters(), max_lr)
   scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr, epochs * len(train_dl))
 
   results = []
-  start_time = time.time()  # Track the start time for the entire training
 
   for epoch in range(epochs):
-    epoch_start_time = time.time()  # Track the start time for each epoch
     model.train()
     train_losses = []
     lrs = []
     for images, labels in train_dl:
-      #logits = model(images)
-      logits = torch.clamp(model(images), min=-1e10, max=1e10)  # Clamp logits within a safe range
+      logits = model(images)
+      #logits = torch.clamp(model(images), min=-1e10, max=1e10)  # Clamp logits within a safe range
       loss = loss_func(logits, labels) # logits and labels are not one hot encoded
       train_losses.append(loss.item()) # Store scalar loss value
       loss.backward() # delta_loss / delta_model_parameters
-      # Apply gradient clipping 
-      torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
       optimizer.step()
       optimizer.zero_grad()
       scheduler.step()
       lrs.append(optimizer.param_groups[0]["lr"])
     epoch_train_loss = sum(train_losses) / len(train_losses)
     epoch_avg_loss, epoch_avg_acc = evaluate(model, val_dl, loss_func)
-    epoch_time = time.time() - epoch_start_time
     # Store results
     results.append({
       'train_loss': epoch_train_loss,
@@ -166,14 +161,11 @@ def train(model, train_dl, val_dl, epochs, max_lr, loss_func, optim):
           f"Train Loss = {epoch_train_loss:.4f}, "
           f"Val Loss = {epoch_avg_loss:.4f}, "
           f"Val Acc = {epoch_avg_acc:.4f}, "
-          f"Learning Rate = {lrs[-1]:.6f}, "
-          f"Time = {epoch_time:.2f}s")
+          f"Learning Rate = {lrs[-1]:.6f}, ")
           
     # Free up memory
     torch.mps.empty_cache()
 
-  total_time = time.time() - start_time  # Total training time
-  print(f"Training completed in: {total_time / 60:.2f} minutes")
   return results
 
 '''
@@ -232,7 +224,7 @@ def main():
   test_dl = DataLoader(test_dataset, BATCH_SIZE, pin_memory=True)
 
   # set device
-  device = torch.device('cpu')
+  device = get_default_device() 
   train_dl = DeviceDataLoader(train_dl, device)
   val_dl = DeviceDataLoader(val_dl, device)
   test_dl = DeviceDataLoader(test_dl, device)
@@ -242,7 +234,7 @@ def main():
   model = to_device(model, device)
   
   # variables for train function
-  loss_func = nn.CrossEntropyLoss() # cross entropy loss function allows for non one hot encoded vectors 
+  loss_func = nn.functional.cross_entropy # cross entropy loss function allows for non one hot encoded vectors 
   optim = torch.optim.Adam
   results = train(model, train_dl, val_dl, EPOCHS, MAX_LR, loss_func, optim)
 
