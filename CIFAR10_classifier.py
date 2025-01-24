@@ -232,7 +232,7 @@ def main():
   test_dl = DataLoader(test_dataset, BATCH_SIZE, pin_memory=True)
 
   # set device
-  device = get_default_device() 
+  device = torch.device('cpu')
   train_dl = DeviceDataLoader(train_dl, device)
   val_dl = DeviceDataLoader(val_dl, device)
   test_dl = DeviceDataLoader(test_dl, device)
