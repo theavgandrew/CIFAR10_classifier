@@ -1,0 +1,1 @@
+trained resnet model to classify images from CIFAR-10 dataset. 90% accuracy rate. lowkey a hit or miss with the training LOL
